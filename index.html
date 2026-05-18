@@ -274,6 +274,7 @@ input[type="date"].date-pick{background:var(--bg2);border:1px solid var(--border
         <select id="f-cat"><option>Software</option><option>Hardware</option><option>Network</option><option>Account / access</option><option>Other</option></select>
       </div>
     </div>
+    <div class="field"><label>Helpdesk ref # <span style="font-weight:400;opacity:0.6">(optional)</span></label><input id="f-helpdesk-ref" placeholder="e.g. INC0012345"></div>
     <div class="field"><label>Notes</label><textarea id="f-notes" placeholder="Steps taken, error messages…"></textarea></div>
     <div class="modal-footer">
       <button class="btn-sm" id="modal-cancel">Cancel</button>
@@ -469,7 +470,8 @@ function openTicketModal(t){
   document.getElementById('f-issue').value    = t ? t.issue    : '';
   document.getElementById('f-priority').value = t ? t.priority : 'med';
   document.getElementById('f-cat').value      = t ? t.category : 'Software';
-  document.getElementById('f-notes').value    = t ? t.notes    : '';
+  document.getElementById('f-notes').value         = t ? t.notes         : '';
+  document.getElementById('f-helpdesk-ref').value = t ? (t.helpdesk_ref||'') : '';
   document.getElementById('ticket-modal').style.display = 'flex';
   setTimeout(()=>document.getElementById('f-company').focus(),50);
 }
@@ -482,7 +484,7 @@ document.getElementById('modal-save').addEventListener('click', async ()=>{
   const caller =document.getElementById('f-caller').value.trim();
   const issue  =document.getElementById('f-issue').value.trim();
   if(!company||!caller||!issue){ alert('Company, caller, and issue are required.'); return; }
-  const fields = { company, caller, phone:document.getElementById('f-phone').value.trim()||null, email:document.getElementById('f-email').value.trim()||null, issue, notes:document.getElementById('f-notes').value.trim(), priority:document.getElementById('f-priority').value, category:document.getElementById('f-cat').value };
+  const fields = { company, caller, phone:document.getElementById('f-phone').value.trim()||null, email:document.getElementById('f-email').value.trim()||null, issue, notes:document.getElementById('f-notes').value.trim(), helpdesk_ref:document.getElementById('f-helpdesk-ref').value.trim()||null, priority:document.getElementById('f-priority').value, category:document.getElementById('f-cat').value };
   document.getElementById('ticket-modal').style.display='none';
   if (editingTicketId) {
     const t=tickets.find(x=>x.id===editingTicketId); Object.assign(t,fields); renderTickets(); await saveTicketDb(t,false);
