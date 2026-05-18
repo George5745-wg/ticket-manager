@@ -1,0 +1,810 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ticket Manager</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/dist/umd/supabase.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0f1117;--bg2:#171b24;--bg3:#1e2330;
+  --border:rgba(255,255,255,0.08);--border2:rgba(255,255,255,0.14);
+  --text:#e8eaf0;--muted:#7a7f8e;
+  --accent:#4f8ef7;--accent2:#3b6fd4;
+  --green:#3ecf8e;--amber:#f59e0b;--red:#ef4444;
+  --font:'IBM Plex Sans',sans-serif;--mono:'IBM Plex Mono',monospace;
+  --r:8px;--r2:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:var(--font);background:var(--bg);color:var(--text);font-size:14px;min-height:100vh;}
+
+/* Auth */
+#auth-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;}
+.auth-card{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r2);padding:2rem;width:340px;}
+.auth-logo{display:flex;align-items:center;gap:10px;margin-bottom:1.5rem;}
+.auth-logo-icon{width:36px;height:36px;background:var(--accent);border-radius:var(--r);display:flex;align-items:center;justify-content:center;font-size:18px;}
+.auth-title{font-size:17px;font-weight:600;}
+.auth-subtitle{font-size:13px;color:var(--muted);margin-top:2px;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px;font-weight:500;letter-spacing:0.04em;text-transform:uppercase;}
+.field input,.field select,.field textarea{width:100%;padding:9px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);color:var(--text);font-family:var(--font);font-size:14px;outline:none;transition:border-color 0.15s;}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent);}
+.field textarea{height:80px;resize:vertical;}
+.field select{cursor:pointer;}
+.btn-primary{width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:var(--r);font-family:var(--font);font-size:14px;font-weight:500;cursor:pointer;transition:background 0.15s;}
+.btn-primary:hover{background:var(--accent2);}
+.auth-error{font-size:13px;margin-top:10px;text-align:center;min-height:20px;}
+
+/* App */
+#app{display:none;}
+.topbar{height:52px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:12px;position:sticky;top:0;z-index:10;}
+.topbar-logo{font-weight:600;font-size:15px;display:flex;align-items:center;gap:8px;}
+.topbar-logo span{color:var(--accent);}
+.topbar-spacer{flex:1;}
+.topbar-user{font-size:12px;color:var(--muted);}
+.btn-sm{padding:6px 12px;border-radius:var(--r);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border2);background:var(--bg3);color:var(--text);transition:background 0.15s;display:inline-flex;align-items:center;gap:6px;}
+.btn-sm:hover{background:var(--border);}
+.btn-sm.accent{background:var(--accent);color:#fff;border-color:var(--accent);}
+.btn-sm.accent:hover{background:var(--accent2);}
+.btn-sm.danger{color:var(--red);border-color:rgba(239,68,68,0.3);}
+.btn-sm.danger:hover{background:rgba(239,68,68,0.1);}
+.btn-sm.success{color:var(--green);border-color:rgba(62,207,142,0.3);}
+.btn-sm.success:hover{background:rgba(62,207,142,0.1);}
+.btn-sm.warn{color:var(--amber);border-color:rgba(245,158,11,0.3);}
+.btn-sm.warn:hover{background:rgba(245,158,11,0.1);}
+.main{padding:20px;max-width:1100px;margin:0 auto;}
+
+/* Tabs */
+.tabs{display:flex;gap:2px;margin-bottom:20px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:4px;width:fit-content;}
+.tab-btn{padding:7px 18px;border-radius:var(--r);font-family:var(--font);font-size:13px;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--muted);transition:all 0.15s;}
+.tab-btn.active{background:var(--bg3);color:var(--text);border:1px solid var(--border2);}
+.tab-btn:hover:not(.active){color:var(--text);}
+
+/* Stats */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+.stat{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:14px 16px;}
+.stat-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;}
+.stat-val{font-size:26px;font-weight:600;font-family:var(--mono);}
+.stat-val.green{color:var(--green);}
+.stat-val.amber{color:var(--amber);}
+.stat-val.blue{color:var(--accent);}
+
+/* Week strip */
+.week-strip{display:flex;gap:4px;margin-bottom:14px;overflow-x:auto;padding-bottom:2px;}
+.week-day{flex:1;min-width:54px;padding:8px 4px 7px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);text-align:center;cursor:pointer;transition:all 0.15s;}
+.week-day:hover{border-color:var(--border2);background:var(--bg3);}
+.week-day.selected{border-color:var(--accent);background:var(--bg3);}
+.week-day.today-day .wd-num{color:var(--accent);font-weight:600;}
+.wd-name{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;}
+.wd-num{font-size:16px;font-weight:500;margin:2px 0;color:var(--text);}
+.wd-dots{display:flex;gap:3px;justify-content:center;min-height:8px;flex-wrap:wrap;padding:0 2px;}
+.wd-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0;}
+.dot-open{background:#7ab3ff;}.dot-active{background:var(--green);}.dot-pending{background:var(--amber);}.dot-resolved{background:rgba(255,255,255,0.2);}
+
+/* Call date header */
+.call-date-header{display:flex;align-items:center;gap:10px;margin-bottom:14px;flex-wrap:wrap;}
+.call-date-label{font-size:15px;font-weight:600;}
+.call-view-all{font-size:12px;color:var(--accent);cursor:pointer;background:none;border:none;font-family:var(--font);padding:0;}
+.call-view-all:hover{text-decoration:underline;}
+
+/* Toolbar */
+.toolbar-filters{display:flex;gap:8px;flex:1;flex-wrap:wrap;}
+.filter-btn{padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;transition:all 0.15s;font-family:var(--font);}
+.filter-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.filter-btn:hover:not(.active){background:var(--bg3);color:var(--text);}
+
+/* Tickets */
+.tickets{display:flex;flex-direction:column;gap:10px;}
+.ticket{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:14px 16px;transition:border-color 0.15s;}
+.ticket.active{border-color:rgba(79,142,247,0.5);}
+.ticket.resolved{opacity:0.55;}
+.ticket-top{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+.ticket-ref{font-family:var(--mono);font-size:11px;color:var(--muted);}
+.ticket-company{font-weight:600;font-size:14px;flex:1;}
+.badge{font-size:11px;font-weight:500;padding:3px 9px;border-radius:20px;letter-spacing:0.03em;}
+.badge-open{background:rgba(79,142,247,0.15);color:#7ab3ff;}
+.badge-active{background:rgba(62,207,142,0.15);color:#3ecf8e;}
+.badge-pending{background:rgba(245,158,11,0.15);color:#f59e0b;}
+.badge-resolved{background:rgba(255,255,255,0.06);color:var(--muted);}
+.p-dot{width:7px;height:7px;border-radius:50%;display:inline-block;}
+.p-low{background:var(--green);}.p-med{background:var(--amber);}.p-high{background:var(--red);}
+.ticket-meta{display:grid;grid-template-columns:1fr 1fr;gap:5px 20px;margin-bottom:10px;}
+.meta-item{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:5px;}
+.meta-item strong{color:var(--text);font-weight:400;}
+.ticket-issue{font-size:13px;color:var(--muted);background:var(--bg3);border-radius:var(--r);padding:8px 10px;margin-bottom:10px;line-height:1.55;white-space:pre-wrap;}
+.ticket-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.timer{font-family:var(--mono);font-size:16px;font-weight:500;margin-left:auto;color:var(--muted);}
+.timer.running{color:var(--green);}
+.empty{text-align:center;padding:60px 20px;color:var(--muted);font-size:14px;}
+
+/* Todo */
+#todo-panel{display:none;}
+.todo-header{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;}
+.date-nav{display:flex;align-items:center;gap:8px;}
+.date-nav button{background:var(--bg2);border:1px solid var(--border2);color:var(--text);border-radius:var(--r);padding:5px 10px;cursor:pointer;font-family:var(--font);font-size:13px;}
+.date-nav button:hover{background:var(--bg3);}
+.date-label{font-size:15px;font-weight:600;min-width:160px;text-align:center;}
+input[type="date"].date-pick{background:var(--bg2);border:1px solid var(--border2);color:var(--text);border-radius:var(--r);padding:5px 10px;font-family:var(--font);font-size:13px;cursor:pointer;outline:none;color-scheme:dark;}
+.todo-list{display:flex;flex-direction:column;gap:8px;}
+.todo-item{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:12px 14px;display:flex;align-items:center;gap:12px;transition:opacity 0.2s;}
+.todo-item.done-item{opacity:0.45;}
+.todo-check{width:20px;height:20px;border-radius:50%;border:2px solid var(--border2);background:transparent;cursor:pointer;flex-shrink:0;transition:all 0.15s;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;}
+.todo-check.checked{background:var(--green);border-color:var(--green);color:#fff;}
+.todo-body{flex:1;min-width:0;}
+.todo-text{font-size:14px;line-height:1.4;}
+.todo-item.done-item .todo-text{text-decoration:line-through;color:var(--muted);}
+.todo-meta-row{font-size:11px;color:var(--muted);margin-top:3px;}
+.todo-actions{display:flex;gap:6px;opacity:0;transition:opacity 0.15s;flex-shrink:0;}
+.todo-item:hover .todo-actions{opacity:1;}
+.todo-empty{text-align:center;padding:50px 20px;color:var(--muted);font-size:14px;}
+.todo-progress{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r2);padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;}
+.progress-bar-wrap{flex:1;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;}
+.progress-bar{height:100%;background:var(--green);border-radius:3px;transition:width 0.3s;}
+.progress-label{font-size:12px;color:var(--muted);min-width:80px;text-align:right;}
+
+/* Modal */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:flex-start;justify-content:center;padding-top:60px;z-index:100;}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r2);padding:20px;width:420px;max-width:calc(100vw - 32px);max-height:85vh;overflow-y:auto;}
+.modal-title{font-size:15px;font-weight:600;margin-bottom:16px;}
+.modal-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;}
+
+/* Logged checkbox */
+.logged-label{display:inline-flex;align-items:center;gap:6px;cursor:pointer;margin-left:4px;user-select:none;font-size:12px;color:var(--muted);white-space:nowrap;}
+.logged-check{appearance:none;width:16px;height:16px;border:1.5px solid var(--border2);border-radius:4px;background:var(--bg3);cursor:pointer;flex-shrink:0;transition:all 0.15s;position:relative;}
+.logged-check:checked{background:var(--purple);border-color:var(--purple);}
+.logged-check:checked::after{content:'✓';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;font-size:10px;font-weight:700;line-height:1;}
+.logged-text{transition:color 0.15s;}
+.logged-label:has(.logged-check:checked) .logged-text{color:#8b5cf6;}
+.ref-input{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--r);padding:4px 8px;font-size:12px;font-family:var(--font);color:var(--text);width:140px;outline:none;transition:border-color 0.15s;}
+.ref-input:focus{border-color:var(--purple);}
+.ref-input::placeholder{color:var(--muted);}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r);padding:10px 16px;font-size:13px;color:var(--green);opacity:0;transform:translateY(8px);transition:all 0.3s;pointer-events:none;z-index:200;}
+.toast.show{opacity:1;transform:translateY(0);}
+</style>
+</head>
+<body>
+
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">
+      <div class="auth-logo-icon">🎧</div>
+      <div>
+        <div class="auth-title">Ticket Manager</div>
+        <div class="auth-subtitle">Sign in to your account</div>
+      </div>
+    </div>
+    <div class="field"><label>Email</label><input type="email" id="auth-email" placeholder="you@company.com"></div>
+    <div class="field"><label>Password</label><input type="password" id="auth-pass" placeholder="••••••••"></div>
+    <button class="btn-primary" id="signin-btn">Sign in</button>
+    <div class="auth-error" id="auth-error"></div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-logo">🎧 <span>Ticket</span> Manager</div>
+    <div class="topbar-spacer"></div>
+    <div class="topbar-user" id="user-label"></div>
+    <button class="btn-sm" id="export-btn">⬇ Export CSV</button>
+    <button class="btn-sm" id="signout-btn">Sign out</button>
+  </div>
+  <div class="main">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="tickets">🎧 Calls</button>
+      <button class="tab-btn" data-tab="todos">✅ To-do</button>
+    </div>
+
+    <!-- Tickets panel -->
+    <div id="tickets-panel">
+      <div class="stats-row">
+        <div class="stat"><div class="stat-label">Total calls</div><div class="stat-val" id="s-total">0</div></div>
+        <div class="stat"><div class="stat-label">Active</div><div class="stat-val green" id="s-active">0</div></div>
+        <div class="stat"><div class="stat-label">On hold</div><div class="stat-val amber" id="s-pending">0</div></div>
+        <div class="stat"><div class="stat-label">Resolved today</div><div class="stat-val blue" id="s-resolved">0</div></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <button class="btn-sm" id="call-week-prev">&#8592; Week</button>
+        <button class="btn-sm" id="call-week-next">Week &#8594;</button>
+        <button class="btn-sm" id="call-day-today">Today</button>
+        <input type="date" class="date-pick" id="call-date-picker">
+        <div style="flex:1"></div>
+        <button class="btn-sm accent" id="new-call-btn">+ New call</button>
+      </div>
+      <div class="week-strip" id="week-strip"></div>
+      <div class="call-date-header">
+        <span class="call-date-label" id="call-date-label"></span>
+        <button class="call-view-all" id="call-view-all-btn"></button>
+        <div style="flex:1"></div>
+        <div class="toolbar-filters">
+          <button class="filter-btn active" data-filter="all">All</button>
+          <button class="filter-btn" data-filter="open">Open</button>
+          <button class="filter-btn" data-filter="active">Active</button>
+          <button class="filter-btn" data-filter="pending">On hold</button>
+          <button class="filter-btn" data-filter="resolved">Resolved</button>
+        </div>
+      </div>
+      <div class="tickets" id="tickets-list"></div>
+    </div>
+
+    <!-- Todo panel -->
+    <div id="todo-panel" style="display:none">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+        <button class="btn-sm" id="todo-week-prev">&#8592; Week</button>
+        <button class="btn-sm" id="todo-week-next">Week &#8594;</button>
+        <button class="btn-sm" id="todo-day-today">Today</button>
+        <input type="date" class="date-pick" id="date-picker">
+        <div style="flex:1"></div>
+        <button class="btn-sm accent" id="new-todo-btn">+ Add task</button>
+      </div>
+      <div class="week-strip" id="todo-week-strip"></div>
+      <div class="call-date-header" style="margin-bottom:12px;">
+        <span class="call-date-label" id="date-label"></span>
+      </div>
+      <div class="todo-progress" id="todo-progress" style="display:none">
+        <span style="font-size:13px;color:var(--muted);min-width:80px" id="progress-text">0 / 0 done</span>
+        <div class="progress-bar-wrap"><div class="progress-bar" id="progress-bar" style="width:0%"></div></div>
+        <span class="progress-label" id="progress-pct">0%</span>
+      </div>
+      <div class="todo-list" id="todo-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Ticket modal -->
+<div id="ticket-modal" class="modal-backdrop" style="display:none">
+  <div class="modal">
+    <div class="modal-title" id="modal-title">Log new call</div>
+    <div class="field"><label>Company name *</label><input id="f-company" placeholder="Acme Ltd"></div>
+    <div class="field"><label>Caller name *</label><input id="f-caller" placeholder="Jane Smith"></div>
+    <div class="modal-row">
+      <div class="field"><label>Phone</label><input id="f-phone" type="tel" placeholder="+44 7700 900000"></div>
+      <div class="field"><label>Email</label><input id="f-email" type="email" placeholder="jane@company.com"></div>
+    </div>
+    <div class="field"><label>Issue summary *</label><input id="f-issue" placeholder="Brief description"></div>
+    <div class="modal-row">
+      <div class="field"><label>Priority</label>
+        <select id="f-priority"><option value="low">Low</option><option value="med" selected>Medium</option><option value="high">High</option></select>
+      </div>
+      <div class="field"><label>Category</label>
+        <select id="f-cat"><option>Software</option><option>Hardware</option><option>Network</option><option>Account / access</option><option>Other</option></select>
+      </div>
+    </div>
+    <div class="field"><label>Notes</label><textarea id="f-notes" placeholder="Steps taken, error messages…"></textarea></div>
+    <div class="modal-footer">
+      <button class="btn-sm" id="modal-cancel">Cancel</button>
+      <button class="btn-sm accent" id="modal-save">Create &amp; start timer</button>
+    </div>
+  </div>
+</div>
+
+<!-- Todo modal -->
+<div id="todo-modal" class="modal-backdrop" style="display:none">
+  <div class="modal">
+    <div class="modal-title" id="todo-modal-title">Add task</div>
+    <div class="field"><label>Task *</label><textarea id="t-task" placeholder="What needs doing?" style="height:60px"></textarea></div>
+    <div class="modal-row">
+      <div class="field"><label>Due date</label><input type="date" id="t-date" class="date-pick" style="width:100%"></div>
+      <div class="field"><label>Due time <span style="font-weight:400;opacity:0.6">(optional)</span></label><input type="time" id="t-time" class="date-pick" style="width:100%;color-scheme:dark"></div>
+      <div class="field"><label>Priority</label>
+        <select id="t-priority"><option value="low">Low</option><option value="med" selected>Medium</option><option value="high">High</option></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-sm" id="todo-modal-cancel">Cancel</button>
+      <button class="btn-sm accent" id="todo-modal-save">Add task</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL  = 'https://rwvxdqzlorcdtobnipmj.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJ3dnhkcXpsb3JjZHRvYm5pcG1qIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg5NTEzNjQsImV4cCI6MjA5NDUyNzM2NH0.egrm5yuJEJxGy7pMH0FmcC9sZIqhnLaVSj4uLjrTAy4';
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
+  auth: { persistSession: true, autoRefreshToken: true }
+});
+
+// ── State ─────────────────────────────────────
+let tickets      = [];
+let todos        = [];
+let ticketCount  = 1;
+let timerIntervals = {};
+let currentFilter  = 'all';
+let editingTicketId = null;
+let editingTodoId   = null;
+let callDate      = new Date().toISOString().slice(0,10);
+let callDateOnly  = true;
+let callWeekOffset = 0;
+let todoDate      = new Date().toISOString().slice(0,10);
+let todoWeekOffset = 0; // number of weeks offset from current week
+
+// ── Helpers ───────────────────────────────────
+function pad(n){ return String(n).padStart(2,'0'); }
+function fmtTime(s){ return pad(Math.floor(s/3600))+':'+pad(Math.floor((s%3600)/60))+':'+pad(s%60); }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function showToast(msg){ const t=document.getElementById('toast'); t.textContent='✓ '+msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2500); }
+function fmtDateLabel(d){
+  const today=new Date().toISOString().slice(0,10);
+  const tom=new Date(Date.now()+86400000).toISOString().slice(0,10);
+  const yes=new Date(Date.now()-86400000).toISOString().slice(0,10);
+  const fmt=(s)=>new Date(s+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'short'});
+  if(d===today) return 'Today — '+fmt(d);
+  if(d===tom)   return 'Tomorrow — '+fmt(d);
+  if(d===yes)   return 'Yesterday — '+fmt(d);
+  return new Date(d+'T12:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+}
+
+// ── Auth ──────────────────────────────────────
+sb.auth.onAuthStateChange((_e, session) => {
+  if (session) {
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    document.getElementById('user-label').textContent = session.user.email;
+    if (_e === 'SIGNED_IN' || _e === 'INITIAL_SESSION') { loadTickets(); loadTodos(); }
+  } else if (_e === 'SIGNED_OUT') {
+    document.getElementById('auth-screen').style.display = 'flex';
+    document.getElementById('app').style.display = 'none';
+  }
+});
+
+document.getElementById('signin-btn').addEventListener('click', async () => {
+  const email = document.getElementById('auth-email').value.trim();
+  const pass  = document.getElementById('auth-pass').value;
+  const err   = document.getElementById('auth-error');
+  err.textContent = 'Signing in…'; err.style.color = 'var(--muted)';
+  try {
+    const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+    if (error) { err.style.color='var(--red)'; err.textContent = error.message; }
+  } catch(e) { err.style.color='var(--red)'; err.textContent = e.message; }
+});
+
+document.getElementById('auth-pass').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('signin-btn').click();
+});
+
+document.getElementById('signout-btn').addEventListener('click', async () => {
+  Object.values(timerIntervals).forEach(clearInterval);
+  timerIntervals = {};
+  await sb.auth.signOut();
+});
+
+// ── Ticket DB ─────────────────────────────────
+async function loadTickets(){
+  const { data, error } = await sb.from('tickets').select('*').order('created_at',{ascending:false});
+  if (error) { console.error('loadTickets',error); return; }
+  tickets = (data||[]).map(r=>{
+    let elapsed = r.elapsed_seconds||0;
+    let timerRunning = false;
+    let timerStart = null;
+    let timerStartedAt = null;
+    // If timer was running when page was last closed, resume it
+    if (r.timer_running && r.timer_started_at) {
+      timerRunning = true;
+      timerStartedAt = r.timer_started_at;
+      timerStart = new Date(r.timer_started_at).getTime();
+    }
+    return {...r, elapsed, timerRunning, timerStart, timerStartedAt, logged:r.logged||false, phone:r.phone||'', email:r.email||'', helpdesk_ref:r.helpdesk_ref||''};
+  });
+  ticketCount = tickets.length + 1;
+  renderTickets();
+}
+
+async function saveTicketDb(t, isNew){
+  const row = {
+    ticket_ref:t.ticket_ref, company:t.company, caller:t.caller, phone:t.phone||null, email:t.email||null,
+    issue:t.issue, notes:t.notes, priority:t.priority, category:t.category,
+    status:t.status, elapsed_seconds:t.elapsed, timer_running:t.timerRunning, timer_started_at:t.timerRunning?(t.timerStartedAt||new Date().toISOString()):null, logged:t.logged||false, helpdesk_ref:t.helpdesk_ref||null,
+    resolved_at: t.status==='resolved' ? new Date().toISOString() : null,
+  };
+  if (isNew) {
+    const { data:{user} } = await sb.auth.getUser();
+    row.created_by = user?.id || null;
+    const { data, error } = await sb.from('tickets').insert([row]).select().single();
+    if (error) { console.error('Insert error:', error); showToast('Save failed: '+error.message); return null; }
+    return data?.id;
+  } else {
+    const { error } = await sb.from('tickets').update(row).eq('id',t.id);
+    if (error) { console.error('Update error:', error); showToast('Save failed: '+error.message); }
+    return t.id;
+  }
+}
+
+async function deleteTicketDb(id){ await sb.from('tickets').delete().eq('id',id); }
+
+// ── Timers ────────────────────────────────────
+function getElapsed(t){ let s=t.elapsed; if(t.timerRunning&&t.timerStart) s+=Math.floor((Date.now()-t.timerStart)/1000); return s; }
+
+function startTimerUI(id){
+  if (timerIntervals[id]) return;
+  timerIntervals[id] = setInterval(()=>{
+    const el=document.getElementById('timer-'+id);
+    const t=tickets.find(x=>x.id===id);
+    if (el&&t) el.textContent=fmtTime(getElapsed(t));
+  },1000);
+}
+
+async function startTimer(id){
+  const t=tickets.find(x=>x.id===id); if(!t||t.timerRunning) return;
+  const now=new Date(); t.timerRunning=true; t.timerStart=now.getTime(); t.timerStartedAt=now.toISOString(); t.status='active';
+  startTimerUI(id); renderTickets(); await saveTicketDb(t,false);
+}
+
+async function stopTimer(id){
+  const t=tickets.find(x=>x.id===id); if(!t||!t.timerRunning) return;
+  t.elapsed+=Math.floor((Date.now()-t.timerStart)/1000);
+  t.timerRunning=false; t.timerStart=null; t.timerStartedAt=null;
+  if(t.status==='active') t.status='pending';
+  clearInterval(timerIntervals[id]); delete timerIntervals[id];
+  renderTickets(); await saveTicketDb(t,false);
+}
+
+async function resolveTicket(id){
+  const t=tickets.find(x=>x.id===id); if(!t) return;
+  if(t.timerRunning){ t.elapsed+=Math.floor((Date.now()-t.timerStart)/1000); t.timerRunning=false; t.timerStart=null; t.timerStartedAt=null; clearInterval(timerIntervals[id]); delete timerIntervals[id]; }
+  t.status='resolved'; renderTickets(); await saveTicketDb(t,false);
+}
+
+async function deleteTicket(id){
+  if(!confirm('Delete this ticket?')) return;
+  clearInterval(timerIntervals[id]); delete timerIntervals[id];
+  tickets=tickets.filter(x=>x.id!==id); renderTickets(); await deleteTicketDb(id);
+}
+
+// ── Ticket modal ──────────────────────────────
+function openTicketModal(t){
+  editingTicketId = t ? t.id : null;
+  document.getElementById('modal-title').textContent    = t ? 'Edit ticket — '+t.ticket_ref : 'Log new call';
+  document.getElementById('modal-save').textContent     = t ? 'Save changes' : 'Create & start timer';
+  document.getElementById('f-company').value  = t ? t.company  : '';
+  document.getElementById('f-caller').value   = t ? t.caller   : '';
+  document.getElementById('f-phone').value = t ? (t.phone||'') : '';
+  document.getElementById('f-email').value = t ? (t.email||'') : '';
+  document.getElementById('f-issue').value    = t ? t.issue    : '';
+  document.getElementById('f-priority').value = t ? t.priority : 'med';
+  document.getElementById('f-cat').value      = t ? t.category : 'Software';
+  document.getElementById('f-notes').value    = t ? t.notes    : '';
+  document.getElementById('ticket-modal').style.display = 'flex';
+  setTimeout(()=>document.getElementById('f-company').focus(),50);
+}
+
+document.getElementById('modal-cancel').addEventListener('click', ()=>{ document.getElementById('ticket-modal').style.display='none'; });
+document.getElementById('ticket-modal').addEventListener('click', e=>{ if(e.target===e.currentTarget) document.getElementById('ticket-modal').style.display='none'; });
+
+document.getElementById('modal-save').addEventListener('click', async ()=>{
+  const company=document.getElementById('f-company').value.trim();
+  const caller =document.getElementById('f-caller').value.trim();
+  const issue  =document.getElementById('f-issue').value.trim();
+  if(!company||!caller||!issue){ alert('Company, caller, and issue are required.'); return; }
+  const fields = { company, caller, phone:document.getElementById('f-phone').value.trim()||null, email:document.getElementById('f-email').value.trim()||null, issue, notes:document.getElementById('f-notes').value.trim(), priority:document.getElementById('f-priority').value, category:document.getElementById('f-cat').value };
+  document.getElementById('ticket-modal').style.display='none';
+  if (editingTicketId) {
+    const t=tickets.find(x=>x.id===editingTicketId); Object.assign(t,fields); renderTickets(); await saveTicketDb(t,false);
+  } else {
+    const ref='TKT-'+String(ticketCount++).padStart(4,'0');
+    const t={id:null,ticket_ref:ref,status:'open',elapsed:0,timerRunning:false,timerStart:null,logged:false,...fields};
+    const newId=await saveTicketDb(t,true);
+    if(newId){
+      callDate=new Date().toISOString().slice(0,10); callWeekOffset=0; callDateOnly=true;
+      await loadTickets();
+      await startTimer(newId);
+    } else {
+      showToast('Failed to save — check console for details');
+    }
+  }
+});
+
+// ── Ticket render ─────────────────────────────
+function statusBadge(s){ const l={open:'Open',active:'On call',pending:'On hold',resolved:'Resolved'}; return '<span class="badge badge-'+s+'">'+(l[s]||s)+'</span>'; }
+function priorityDot(p){ const l={low:'Low',med:'Medium',high:'High'}; return '<span class="p-dot p-'+p+'"></span> '+(l[p]||p); }
+
+function renderWeekStrip(){
+  const strip=document.getElementById('week-strip'); if(!strip) return;
+  const today=new Date().toISOString().slice(0,10);
+  const names=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const days=[];
+  const centre=callWeekOffset*7;
+  for(let i=centre-7;i<=centre+6;i++){ const d=new Date(); d.setDate(d.getDate()+i); days.push(d.toISOString().slice(0,10)); }
+  strip.innerHTML=days.map(date=>{
+    const d=new Date(date+'T12:00:00');
+    const sel=date===callDate&&callDateOnly;
+    const isToday=date===today;
+    const dt=tickets.filter(t=>t.created_at&&t.created_at.slice(0,10)===date);
+    const c={open:0,active:0,pending:0,resolved:0};
+    dt.forEach(t=>{ if(c[t.status]!==undefined) c[t.status]++; });
+    let dots='';
+    [['open','dot-open'],['active','dot-active'],['pending','dot-pending'],['resolved','dot-resolved']].forEach(([k,cls])=>{
+      for(let i=0;i<Math.min(c[k],3);i++) dots+='<span class="wd-dot '+cls+'"></span>';
+    });
+    return '<div class="week-day'+(sel?' selected':'')+(isToday?' today-day':'')+'" data-date="'+date+'">'
+      +'<div class="wd-name">'+names[d.getDay()]+'</div>'
+      +'<div class="wd-num">'+d.getDate()+'</div>'
+      +'<div class="wd-dots">'+dots+'</div></div>';
+  }).join('');
+}
+
+function updateStats(){
+  const today=new Date().toDateString();
+  document.getElementById('s-total').textContent   =tickets.length;
+  document.getElementById('s-active').textContent  =tickets.filter(t=>t.status==='active').length;
+  document.getElementById('s-pending').textContent =tickets.filter(t=>t.status==='pending').length;
+  document.getElementById('s-resolved').textContent=tickets.filter(t=>t.status==='resolved'&&new Date(t.resolved_at||t.created_at).toDateString()===today).length;
+}
+
+function renderTickets(){
+  updateStats(); renderWeekStrip();
+  const lbl=document.getElementById('call-date-label');
+  const vab=document.getElementById('call-view-all-btn');
+  if(lbl) lbl.textContent=callDateOnly?fmtDateLabel(callDate):'All calls';
+  if(vab) vab.textContent=callDateOnly?'Show all dates':'Filter by day';
+  const cdp=document.getElementById('call-date-picker'); if(cdp) cdp.value=callDate;
+  const list=document.getElementById('tickets-list');
+  let base=callDateOnly?tickets.filter(t=>t.created_at&&t.created_at.slice(0,10)===callDate):tickets;
+  const filtered=currentFilter==='all'?base:base.filter(t=>t.status===currentFilter);
+  if(filtered.length===0){
+    const msg=callDateOnly?'No calls logged for this day.':(currentFilter==='all'?'No calls yet. Click <strong>+ New call</strong> to get started.':'No calls in this filter.');
+    list.innerHTML='<div class="empty">📭<br><br>'+msg+'</div>'; return;
+  }
+  list.innerHTML=filtered.map(t=>{
+    const elapsed=getElapsed(t); const running=t.timerRunning;
+    return '<div class="ticket'+(t.status==='active'?' active':'')+(t.status==='resolved'?' resolved':'')+'" data-id="'+t.id+'">'
+      +'<div class="ticket-top"><span class="ticket-ref">'+esc(t.ticket_ref||'')+'</span>'
+      +'<span class="ticket-company">'+esc(t.company)+'</span>'+statusBadge(t.status)+'</div>'
+      +'<div class="ticket-meta">'
+      +'<div class="meta-item">👤 <strong>'+esc(t.caller)+'</strong></div>'
+      +'<div class="meta-item">🏷 <strong>'+esc(t.category)+'</strong></div>'
+      +(t.phone?'<div class="meta-item">📞 <strong>'+esc(t.phone)+'</strong></div>':'<div></div>')
+      +(t.email?'<div class="meta-item">✉️ <strong>'+esc(t.email)+'</strong></div>':'<div></div>')
+      +'<div class="meta-item">'+priorityDot(t.priority)+' priority</div></div>'
+      +'<div class="ticket-issue">'+esc(t.issue)+(t.notes?'\n\n'+esc(t.notes):'')+'</div>'
+      +'<div class="ticket-actions">'
+      +(t.status!=='resolved'?(running
+        ?'<button class="btn-sm warn" data-action="pause" data-id="'+t.id+'">⏸ Pause</button>'
+        :(t.status==='open'
+          ?'<button class="btn-sm success" data-action="resume" data-id="'+t.id+'">▶ Start</button>'
+          :'<button class="btn-sm success" data-action="resume" data-id="'+t.id+'">▶ Resume</button>')):'')
+      +(t.status!=='resolved'?'<button class="btn-sm" data-action="edit" data-id="'+t.id+'">✏️ Edit</button>':'')
+      +(t.status!=='resolved'?'<button class="btn-sm accent" data-action="resolve" data-id="'+t.id+'">✓ Resolve</button>':'')
+      +'<button class="btn-sm danger" data-action="delete" data-id="'+t.id+'">🗑</button>'
+      +'<span class="timer'+(running?' running':'')+'" id="timer-'+t.id+'">'+fmtTime(elapsed)+'</span>'
+      +'<label class="logged-label" title="Logged in helpdesk system">'
+      +'<input type="checkbox" class="logged-check" data-action="logged" data-id="'+t.id+'"'+(t.logged?' checked':'')+'>'
+      +'<span class="logged-text">'+(t.logged?'Logged':'Log time')+'</span>'
+      +'</label>'
+      +(t.logged?'<input class="ref-input" type="text" placeholder="Helpdesk ref #" data-action="ref" data-id="'+t.id+'" value="'+esc(t.helpdesk_ref||'')+'" title="Company helpdesk ticket number">':'')
+      +'</div></div>';
+  }).join('');
+  tickets.filter(t=>t.timerRunning).forEach(t=>startTimerUI(t.id));
+}
+
+// ── Todo DB ───────────────────────────────────
+async function loadTodos(){
+  const { data, error } = await sb.from('todos').select('*').order('created_at',{ascending:true});
+  if (error) { console.error('loadTodos',error); return; }
+  todos = data || [];
+  renderTodos();
+}
+
+async function saveTodoDb(t, isNew){
+  const row={task:t.task,due_date:t.due_date,due_time:t.due_time||null,priority:t.priority,done:t.done};
+  if(isNew){
+    const {data:{user}}=await sb.auth.getUser(); row.created_by=user?.id||null;
+    const {data}=await sb.from('todos').insert([row]).select().single(); return data?.id;
+  } else { await sb.from('todos').update(row).eq('id',t.id); return t.id; }
+}
+
+async function toggleTodo(id){
+  const t=todos.find(x=>x.id===id); if(!t) return;
+  t.done=!t.done; renderTodos(); await sb.from('todos').update({done:t.done}).eq('id',id);
+}
+
+async function deleteTodo(id){
+  todos=todos.filter(x=>x.id!==id); renderTodos(); await sb.from('todos').delete().eq('id',id);
+}
+
+// ── Todo modal ────────────────────────────────
+function openTodoModal(t){
+  editingTodoId=t?t.id:null;
+  document.getElementById('todo-modal-title').textContent=t?'Edit task':'Add task';
+  document.getElementById('todo-modal-save').textContent=t?'Save changes':'Add task';
+  document.getElementById('t-task').value    =t?t.task:'';
+  document.getElementById('t-date').value    =t?(t.due_date||todoDate):todoDate;
+  document.getElementById('t-time').value    =t?(t.due_time||''):'';
+  document.getElementById('t-priority').value=t?t.priority:'med';
+  document.getElementById('todo-modal').style.display='flex';
+  setTimeout(()=>document.getElementById('t-task').focus(),50);
+}
+
+document.getElementById('todo-modal-cancel').addEventListener('click',()=>{ document.getElementById('todo-modal').style.display='none'; });
+document.getElementById('todo-modal').addEventListener('click',e=>{ if(e.target===e.currentTarget) document.getElementById('todo-modal').style.display='none'; });
+
+document.getElementById('todo-modal-save').addEventListener('click', async ()=>{
+  const task=document.getElementById('t-task').value.trim();
+  if(!task){ alert('Task text is required.'); return; }
+  const fields={task, due_date:document.getElementById('t-date').value||todoDate, due_time:document.getElementById('t-time').value||null, priority:document.getElementById('t-priority').value, done:false};
+  document.getElementById('todo-modal').style.display='none';
+  if(editingTodoId){
+    const t=todos.find(x=>x.id===editingTodoId); Object.assign(t,fields); renderTodos(); await saveTodoDb(t,false);
+  } else {
+    const t={id:null,...fields};
+    const newId=await saveTodoDb(t,true);
+    if(newId){ t.id=newId; todos.push(t); renderTodos(); } else { await loadTodos(); }
+  }
+});
+
+// ── Todo render ───────────────────────────────
+function renderTodoWeekStrip(){
+  const strip=document.getElementById('todo-week-strip'); if(!strip) return;
+  const today=new Date().toISOString().slice(0,10);
+  const names=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const days=[];
+  // 14-day window centred on current week + offset (7 days back, 7 days forward from offset centre)
+  const centre=todoWeekOffset*7;
+  for(let i=centre-7;i<=centre+6;i++){
+    const d=new Date(); d.setDate(d.getDate()+i); days.push(d.toISOString().slice(0,10));
+  }
+  strip.innerHTML=days.map(date=>{
+    const d=new Date(date+'T12:00:00');
+    const sel=date===todoDate;
+    const isToday=date===today;
+    const dt=todos.filter(t=>t.due_date===date);
+    const done=dt.filter(t=>t.done).length;
+    const total=dt.length;
+    let dots='';
+    if(total>0){
+      // Show up to 3 pending dots (green) and up to 3 done dots (faint)
+      const pending=total-done;
+      for(let i=0;i<Math.min(pending,3);i++) dots+='<span class="wd-dot dot-active"></span>';
+      for(let i=0;i<Math.min(done,3);i++)    dots+='<span class="wd-dot dot-resolved"></span>';
+    }
+    return '<div class="week-day'+(sel?' selected':'')+(isToday?' today-day':'')+'" data-todo-date="'+date+'">'
+      +'<div class="wd-name">'+names[d.getDay()]+'</div>'
+      +'<div class="wd-num">'+d.getDate()+'</div>'
+      +'<div class="wd-dots">'+dots+'</div></div>';
+  }).join('');
+}
+
+function renderTodos(){
+  renderTodoWeekStrip();
+  const lbl=document.getElementById('date-label');
+  const pk=document.getElementById('date-picker');
+  if(lbl) lbl.textContent=fmtDateLabel(todoDate);
+  if(pk)  pk.value=todoDate;
+  const dayTodos=todos.filter(t=>t.due_date===todoDate);
+  const list=document.getElementById('todo-list');
+  const prog=document.getElementById('todo-progress');
+  if(dayTodos.length>0){
+    const done=dayTodos.filter(t=>t.done).length;
+    const pct=Math.round((done/dayTodos.length)*100);
+    document.getElementById('progress-bar').style.width=pct+'%';
+    document.getElementById('progress-pct').textContent=pct+'%';
+    document.getElementById('progress-text').textContent=done+' / '+dayTodos.length+' done';
+    prog.style.display='flex';
+  } else { prog.style.display='none'; }
+  if(dayTodos.length===0){ list.innerHTML='<div class="todo-empty">📋 No tasks for this day.<br>Click <strong>+ Add task</strong> to plan your day.</div>'; return; }
+  const sorted=[...dayTodos].sort((a,b)=>{ const p={high:0,med:1,low:2}; if(a.done!==b.done) return a.done?1:-1; return (p[a.priority]||1)-(p[b.priority]||1); });
+  const pc={low:'var(--green)',med:'var(--amber)',high:'var(--red)'};
+  const pl={low:'Low',med:'Medium',high:'High'};
+  list.innerHTML=sorted.map(t=>'<div class="todo-item'+(t.done?' done-item':'')+'" data-todo-id="'+t.id+'">'
+    +'<div class="todo-check'+(t.done?' checked':'')+'" data-todo-action="toggle" data-todo-id="'+t.id+'">'+(t.done?'✓':'')+'</div>'
+    +'<div class="todo-body"><div class="todo-text">'+esc(t.task)+'</div>'
+    +'<div class="todo-meta-row">'+(t.due_time?'<span style="color:var(--text);font-weight:500">⏰ '+t.due_time+'</span><span style="margin:0 6px;opacity:0.4">·</span>':'')+'<span style="color:'+pc[t.priority]+'">'+pl[t.priority]+' priority</span></div></div>'
+    +'<div class="todo-actions">'
+    +'<button class="btn-sm" data-todo-action="edit" data-todo-id="'+t.id+'" style="padding:4px 8px;font-size:12px">✏️</button>'
+    +'<button class="btn-sm danger" data-todo-action="delete" data-todo-id="'+t.id+'" style="padding:4px 8px;font-size:12px">🗑</button>'
+    +'</div></div>').join('');
+}
+
+// ── Tab switching ─────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    const tab=btn.dataset.tab;
+    document.getElementById('tickets-panel').style.display=tab==='tickets'?'block':'none';
+    document.getElementById('todo-panel').style.display   =tab==='todos'  ?'block':'none';
+    if(tab==='todos') renderTodos();
+  });
+});
+
+// ── Filters & controls ────────────────────────
+document.querySelectorAll('.filter-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter=btn.dataset.filter;
+    renderTickets();
+  });
+});
+
+document.getElementById('call-view-all-btn').addEventListener('click',()=>{ callDateOnly=!callDateOnly; renderTickets(); });
+document.getElementById('call-week-prev').addEventListener('click',()=>{ callWeekOffset--; renderTickets(); });
+document.getElementById('call-date-picker').addEventListener('change',e=>{
+  callDate=e.target.value; callDateOnly=true;
+  const today=new Date(); const picked=new Date(callDate+'T12:00:00');
+  callWeekOffset=Math.round((picked-today)/(7*86400000));
+  renderTickets();
+});
+document.getElementById('call-week-next').addEventListener('click',()=>{ callWeekOffset++; renderTickets(); });
+document.getElementById('call-day-today').addEventListener('click',()=>{ callDate=new Date().toISOString().slice(0,10); callWeekOffset=0; callDateOnly=true; renderTickets(); });
+document.getElementById('new-call-btn').addEventListener('click',()=>openTicketModal(null));
+document.getElementById('new-todo-btn').addEventListener('click',()=>openTodoModal(null));
+document.getElementById('todo-week-prev').addEventListener('click',()=>{ todoWeekOffset--; renderTodos(); });
+document.getElementById('todo-week-next').addEventListener('click',()=>{ todoWeekOffset++; renderTodos(); });
+document.getElementById('todo-day-today').addEventListener('click',()=>{ todoDate=new Date().toISOString().slice(0,10); todoWeekOffset=0; renderTodos(); });
+document.getElementById('date-picker').addEventListener('change',e=>{
+  todoDate=e.target.value;
+  // Snap week strip to show the picked date
+  const today=new Date(); const picked=new Date(todoDate+'T12:00:00');
+  todoWeekOffset=Math.round((picked-today)/(7*86400000));
+  renderTodos();
+});
+
+document.getElementById('export-btn').addEventListener('click',()=>{
+  const cols=['ticket_ref','company','caller','phone','email','issue','priority','category','status','elapsed_seconds','notes','created_at','resolved_at'];
+  const rows=[cols.join(',')];
+  tickets.forEach(t=>{ rows.push([t.ticket_ref,t.company,t.caller,t.phone||'',t.email||'','"'+(t.issue||'').replace(/"/g,'""')+'"',t.priority,t.category,t.status,getElapsed(t),'"'+(t.notes||'').replace(/"/g,'""')+'"',t.created_at||'',t.resolved_at||''].join(',')); });
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([rows.join('\n')],{type:'text/csv'}));
+  a.download='tickets-'+new Date().toISOString().slice(0,10)+'.csv'; a.click(); showToast('CSV downloaded');
+});
+
+// ── Event delegation (tickets + todos + week strip) ──
+document.addEventListener('click', e=>{
+  // Calls week day click
+  const wd=e.target.closest('.week-day[data-date]');
+  if(wd){ callDate=wd.dataset.date; callDateOnly=true; renderTickets(); return; }
+  // Todo week day click
+  const twd=e.target.closest('.week-day[data-todo-date]');
+  if(twd){ todoDate=twd.dataset.todoDate; renderTodos(); return; }
+  // Ticket actions
+  const btn=e.target.closest('[data-action]');
+  if(btn){
+    const id=btn.dataset.id; const action=btn.dataset.action;
+    if(action==='pause')   stopTimer(id);
+    if(action==='resume')  startTimer(id);
+    if(action==='resolve') resolveTicket(id);
+    if(action==='delete')  deleteTicket(id);
+    if(action==='edit'){ const t=tickets.find(x=>x.id===id); if(t) openTicketModal(t); }
+    if(action==='logged'){ const t=tickets.find(x=>x.id===id); if(t){ t.logged=btn.checked; if(!t.logged) t.helpdesk_ref=''; renderTickets(); saveTicketDb(t,false); } }
+    if(action==='ref'){
+      // handled via blur/enter on the input directly — see input event listener
+    }
+    return;
+  }
+  // Todo actions
+  const el=e.target.closest('[data-todo-action]');
+  if(el){
+    const id=el.dataset.todoId; const action=el.dataset.todoAction;
+    if(action==='toggle') toggleTodo(id);
+    if(action==='delete') deleteTodo(id);
+    if(action==='edit'){ const t=todos.find(x=>x.id===id); if(t) openTodoModal(t); }
+  }
+});
+
+// Save helpdesk ref on blur or Enter
+document.addEventListener('blur', e=>{
+  if(e.target.classList.contains('ref-input')){
+    const id=e.target.dataset.id;
+    const t=tickets.find(x=>x.id===id);
+    if(t){ t.helpdesk_ref=e.target.value.trim(); saveTicketDb(t,false); }
+  }
+}, true);
+document.addEventListener('keydown', e=>{
+  if(e.key==='Enter' && e.target.classList.contains('ref-input')){
+    e.target.blur();
+  }
+});
+
+// Keyboard shortcut
+document.addEventListener('keydown', e=>{
+  if(e.key==='n'&&!e.ctrlKey&&!e.metaKey&&document.activeElement.tagName!=='INPUT'&&document.activeElement.tagName!=='TEXTAREA') openTicketModal(null);
+});
+</script>
+</body>
+</html>
