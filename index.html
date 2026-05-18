@@ -402,7 +402,7 @@ async function saveTicketDb(t, isNew){
     ticket_ref:t.ticket_ref, company:t.company, caller:t.caller, phone:t.phone||null, email:t.email||null,
     issue:t.issue, notes:t.notes, priority:t.priority, category:t.category,
     status:t.status, elapsed_seconds:t.elapsed, timer_running:t.timerRunning, timer_started_at:t.timerRunning?(t.timerStartedAt||new Date().toISOString()):null, logged:t.logged||false, helpdesk_ref:t.helpdesk_ref||null,
-    resolved_at: t.status==='resolved' ? new Date().toISOString() : null,
+    resolved_at: t.status==='resolved' ? (t.resolved_at||new Date().toISOString()) : null,
   };
   if (isNew) {
     const { data:{user} } = await sb.auth.getUser();
@@ -450,6 +450,11 @@ async function resolveTicket(id){
   const t=tickets.find(x=>x.id===id); if(!t) return;
   if(t.timerRunning){ t.elapsed+=Math.floor((Date.now()-t.timerStart)/1000); t.timerRunning=false; t.timerStart=null; t.timerStartedAt=null; clearInterval(timerIntervals[id]); delete timerIntervals[id]; }
   t.status='resolved'; renderTickets(); await saveTicketDb(t,false);
+}
+
+async function reopenTicket(id){
+  const t=tickets.find(x=>x.id===id); if(!t) return;
+  t.status='open'; t.resolved_at=null; renderTickets(); await saveTicketDb(t,false);
 }
 
 async function deleteTicket(id){
@@ -572,7 +577,7 @@ function renderTickets(){
           ?'<button class="btn-sm success" data-action="resume" data-id="'+t.id+'">▶ Start</button>'
           :'<button class="btn-sm success" data-action="resume" data-id="'+t.id+'">▶ Resume</button>')):'')
       +(t.status!=='resolved'?'<button class="btn-sm" data-action="edit" data-id="'+t.id+'">✏️ Edit</button>':'')
-      +(t.status!=='resolved'?'<button class="btn-sm accent" data-action="resolve" data-id="'+t.id+'">✓ Resolve</button>':'')
+      +(t.status!=='resolved'?'<button class="btn-sm accent" data-action="resolve" data-id="'+t.id+'">✓ Resolve</button>':'<button class="btn-sm warn" data-action="reopen" data-id="'+t.id+'">↩ Reopen</button>')
       +'<button class="btn-sm danger" data-action="delete" data-id="'+t.id+'">🗑</button>'
       +'<span class="timer'+(running?' running':'')+'" id="timer-'+t.id+'">'+fmtTime(elapsed)+'</span>'
       +'<label class="logged-label" title="Logged in helpdesk system">'
@@ -771,6 +776,7 @@ document.addEventListener('click', e=>{
     if(action==='pause')   stopTimer(id);
     if(action==='resume')  startTimer(id);
     if(action==='resolve') resolveTicket(id);
+    if(action==='reopen')  reopenTicket(id);
     if(action==='delete')  deleteTicket(id);
     if(action==='edit'){ const t=tickets.find(x=>x.id===id); if(t) openTicketModal(t); }
     if(action==='logged'){ const t=tickets.find(x=>x.id===id); if(t){ t.logged=btn.checked; if(!t.logged) t.helpdesk_ref=''; renderTickets(); saveTicketDb(t,false); } }
