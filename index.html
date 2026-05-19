@@ -468,15 +468,17 @@ function openTicketModal(t){
   editingTicketId = t ? t.id : null;
   document.getElementById('modal-title').textContent    = t ? 'Edit ticket — '+t.ticket_ref : 'Log new call';
   document.getElementById('modal-save').textContent     = t ? 'Save changes' : 'Create & start timer';
-  document.getElementById('f-company').value  = t ? t.company  : '';
-  document.getElementById('f-caller').value   = t ? t.caller   : '';
-  document.getElementById('f-phone').value = t ? (t.phone||'') : '';
-  document.getElementById('f-email').value = t ? (t.email||'') : '';
-  document.getElementById('f-issue').value    = t ? t.issue    : '';
-  document.getElementById('f-priority').value = t ? t.priority : 'med';
-  document.getElementById('f-cat').value      = t ? t.category : 'Software';
-  document.getElementById('f-notes').value         = t ? t.notes         : '';
-  document.getElementById('f-helpdesk-ref').value = t ? (t.helpdesk_ref||'') : '';
+  document.getElementById('f-company').value           = t ? t.company          : '';
+  document.getElementById('f-caller').value            = t ? t.caller           : '';
+  document.getElementById('f-phone').value             = t ? (t.phone||'')      : '';
+  document.getElementById('f-email').value             = t ? (t.email||'')      : '';
+  document.getElementById('f-issue').value             = t ? t.issue            : '';
+  document.getElementById('f-priority').value          = t ? t.priority         : 'med';
+  document.getElementById('f-cat').value               = t ? t.category         : 'Software';
+  document.getElementById('f-notes').value             = t ? t.notes            : '';
+  document.getElementById('f-helpdesk-ref').value      = t ? (t.helpdesk_ref||''): '';
+  // Restore any saved draft if this is a new call (not an edit)
+  if (!t) restoreTicketDraft();
   document.getElementById('ticket-modal').style.display = 'flex';
   setTimeout(()=>document.getElementById('f-company').focus(),50);
 }
