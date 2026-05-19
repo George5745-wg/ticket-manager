@@ -478,7 +478,8 @@ function openTicketModal(t){
   document.getElementById('f-notes').value             = t ? t.notes            : '';
   document.getElementById('f-helpdesk-ref').value      = t ? (t.helpdesk_ref||''): '';
   // Restore any saved draft if this is a new call (not an edit)
-  if (!t) restoreTicketDraft();
+  if (!t) { restoreTicketDraft(); window._modalOpenedAt = Date.now(); }
+  else { window._modalOpenedAt = null; }
   document.getElementById('ticket-modal').style.display = 'flex';
   setTimeout(()=>document.getElementById('f-company').focus(),50);
 }
@@ -497,7 +498,9 @@ document.getElementById('modal-save').addEventListener('click', async ()=>{
     const t=tickets.find(x=>x.id===editingTicketId); Object.assign(t,fields); renderTickets(); await saveTicketDb(t,false);
   } else {
     const ref='TKT-'+String(ticketCount++).padStart(4,'0');
-    const t={id:null,ticket_ref:ref,status:'open',elapsed:0,timerRunning:false,timerStart:null,logged:false,...fields};
+    const preElapsed = window._modalOpenedAt ? Math.floor((Date.now()-window._modalOpenedAt)/1000) : 0;
+    window._modalOpenedAt = null;
+    const t={id:null,ticket_ref:ref,status:'open',elapsed:preElapsed,timerRunning:false,timerStart:null,logged:false,...fields};
     clearTicketDraft();
     const newId=await saveTicketDb(t,true);
     if(newId){
