@@ -500,6 +500,7 @@ document.getElementById('modal-save').addEventListener('click', async ()=>{
     const ref='TKT-'+String(ticketCount++).padStart(4,'0');
     const preElapsed = window._modalOpenedAt ? Math.floor((Date.now()-window._modalOpenedAt)/1000) : 0;
     window._modalOpenedAt = null;
+    if(preElapsed>0) showToast('Timer started '+preElapsed+'s ago');
     const t={id:null,ticket_ref:ref,status:'open',elapsed:preElapsed,timerRunning:false,timerStart:null,logged:false,...fields};
     clearTicketDraft();
     const newId=await saveTicketDb(t,true);
