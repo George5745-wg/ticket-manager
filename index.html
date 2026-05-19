@@ -496,6 +496,7 @@ document.getElementById('modal-save').addEventListener('click', async ()=>{
   } else {
     const ref='TKT-'+String(ticketCount++).padStart(4,'0');
     const t={id:null,ticket_ref:ref,status:'open',elapsed:0,timerRunning:false,timerStart:null,logged:false,...fields};
+    clearTicketDraft();
     const newId=await saveTicketDb(t,true);
     if(newId){
       callDate=new Date().toISOString().slice(0,10); callWeekOffset=0; callDateOnly=true;
@@ -813,6 +814,66 @@ document.addEventListener('keydown', e=>{
 document.addEventListener('keydown', e=>{
   if(e.key==='n'&&!e.ctrlKey&&!e.metaKey&&document.activeElement.tagName!=='INPUT'&&document.activeElement.tagName!=='TEXTAREA') openTicketModal(null);
 });
+
+// ── Ticket modal draft (restore if accidentally closed) ──────
+const DRAFT_KEY = 'ticketDraft';
+const DRAFT_FIELDS = ['f-company','f-caller','f-phone','f-email','f-issue','f-helpdesk-ref','f-notes','f-priority','f-cat'];
+
+function saveTicketDraft(){
+  // Only save if it's a new call (editingTicketId is null)
+  if (editingTicketId) return;
+  const draft = {};
+  DRAFT_FIELDS.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) draft[id] = el.value;
+  });
+  // Only save if at least one field has content
+  if (Object.values(draft).some(v => v && v !== 'med' && v !== 'Software')) {
+    sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
+  }
+}
+
+function restoreTicketDraft(){
+  try {
+    const raw = sessionStorage.getItem(DRAFT_KEY);
+    if (!raw) return;
+    const draft = JSON.parse(raw);
+    DRAFT_FIELDS.forEach(id => {
+      const el = document.getElementById(id);
+      if (el && draft[id] !== undefined) el.value = draft[id];
+    });
+  } catch(e) {}
+}
+
+function clearTicketDraft(){
+  sessionStorage.removeItem(DRAFT_KEY);
+}
+
+// Attach input listeners to modal fields to auto-save draft
+document.getElementById('ticket-modal').addEventListener('input', saveTicketDraft);
+document.getElementById('ticket-modal').addEventListener('change', saveTicketDraft);
+
+// 3CX screen pop — reads ?caller=NUMBER&name=NAME&company=COMPANY from URL
+function handle3CXScreenPop(){
+  const params = new URLSearchParams(window.location.search);
+  const caller  = params.get('caller')  || params.get('number') || params.get('phone') || '';
+  const name    = params.get('name')    || params.get('callerid') || '';
+  const company = params.get('company') || '';
+  if (!caller && !name) return; // no pop params, nothing to do
+  // Wait for auth then open modal pre-filled
+  const tryOpen = setInterval(()=>{
+    if (document.getElementById('app').style.display === 'block') {
+      clearInterval(tryOpen);
+      openTicketModal(null);
+      if (caller)  document.getElementById('f-phone').value   = caller;
+      if (name)    document.getElementById('f-caller').value  = name;
+      if (company) document.getElementById('f-company').value = company;
+      // Clean the URL so refreshing doesn't re-trigger
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, 200);
+}
+handle3CXScreenPop();
 </script>
 </body>
 </html>
