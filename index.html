@@ -478,8 +478,12 @@ function openTicketModal(t){
   document.getElementById('f-notes').value             = t ? t.notes            : '';
   document.getElementById('f-helpdesk-ref').value      = t ? (t.helpdesk_ref||''): '';
   // Restore any saved draft if this is a new call (not an edit)
-  if (!t) { restoreTicketDraft(); if (!window._modalOpenedAt) window._modalOpenedAt = Date.now(); }
-  else { window._modalOpenedAt = null; }
+  if (!t) {
+    // Pause all running timers
+    tickets.filter(x=>x.timerRunning).forEach(x=>{ stopTimer(x.id); });
+    restoreTicketDraft();
+    if (!window._modalOpenedAt) window._modalOpenedAt = Date.now();
+  } else { window._modalOpenedAt = null; }
   document.getElementById('ticket-modal').style.display = 'flex';
   setTimeout(()=>document.getElementById('f-company').focus(),50);
 }
